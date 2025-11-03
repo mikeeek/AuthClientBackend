@@ -108,4 +108,6 @@ AuthLicensingApi/*.docstates
 *.sqlite
 *.bak.json
 dump/
-data/
+# Ignore data directories (but NOT source code folders like AuthLicensingApi/Data)
+**/data/
+!AuthLicensingApi/Data/
