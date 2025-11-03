@@ -1,0 +1,118 @@
+name: Build & Deploy AuthLicensingApi to Azure Container Apps
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/authlicensingapi
+  RG_NAME: auth-licensing-rg
+  LOCATION: westeurope
+  ACA_ENV_NAME: auth-licensing-env
+  ACA_APP_NAME: auth-licensing-api
+  CONTAINER_PORT: "5080"
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker login (Docker Hub)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build image
+        run: |
+          docker build \
+            -f AuthLicensingApi/Dockerfile \
+            -t $IMAGE_NAME:latest \
+            -t $IMAGE_NAME:${{ github.sha }} \
+            AuthLicensingApi
+
+      - name: Push image
+        run: |
+          docker push $IMAGE_NAME:latest
+          docker push $IMAGE_NAME:${{ github.sha }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Azure CLI - Deploy to Azure Container Apps
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            set -e
+
+            az extension add -n containerapp --yes
+
+            # 1) Resource Group (idempotent)
+            az group create -n $RG_NAME -l $LOCATION
+
+            # 2) Container Apps Environment (idempotent)
+            if ! az containerapp env show -g $RG_NAME -n $ACA_ENV_NAME >/dev/null 2>&1; then
+              az containerapp env create -g $RG_NAME -n $ACA_ENV_NAME -l $LOCATION
+            fi
+
+            IMAGE="${{ env.IMAGE_NAME }}:${{ github.sha }}"
+            PORT="${{ env.CONTAINER_PORT }}"
+
+            if az containerapp show -g $RG_NAME -n $ACA_APP_NAME >/dev/null 2>&1; then
+              echo "App exists → updating image & environment variables"
+
+              az containerapp update \
+                -g $RG_NAME -n $ACA_APP_NAME \
+                --image "$IMAGE" \
+                --set-env-vars \
+                  ASPNETCORE_ENVIRONMENT=Production \
+                  ASPNETCORE_URLS=http://0.0.0.0:${PORT} \
+                  Mongo__ConnectionString='${{ secrets.MONGO_CONNECTION_STRING }}' \
+                  Mongo__Database='${{ secrets.MONGO_DATABASE }}' \
+                  Auth__JwtKey='${{ secrets.JWT_KEY }}' \
+                  Auth__JwtIssuer='${{ secrets.JWT_ISSUER }}' \
+                  Auth__JwtAudience='${{ secrets.JWT_AUDIENCE }}'
+
+              az containerapp ingress update \
+                -g $RG_NAME -n $ACA_APP_NAME \
+                --type external --target-port $PORT --transport auto
+            else
+              echo "App not found → creating new container app"
+
+              az containerapp create \
+                -g $RG_NAME -n $ACA_APP_NAME \
+                --environment $ACA_ENV_NAME \
+                --image "$IMAGE" \
+                --env-vars \
+                  ASPNETCORE_ENVIRONMENT=Production \
+                  ASPNETCORE_URLS=http://0.0.0.0:${PORT} \
+                  Mongo__ConnectionString='${{ secrets.MONGO_CONNECTION_STRING }}' \
+                  Mongo__Database='${{ secrets.MONGO_DATABASE }}' \
+                  Auth__JwtKey='${{ secrets.JWT_KEY }}' \
+                  Auth__JwtIssuer='${{ secrets.JWT_ISSUER }}' \
+                  Auth__JwtAudience='${{ secrets.JWT_AUDIENCE }}' \
+                --ingress external --target-port $PORT --transport auto \
+                --cpu 0.5 --memory 1.0Gi \
+                --registry-server docker.io \
+                --registry-username "${{ secrets.DOCKERHUB_USERNAME }}" \
+                --registry-password "${{ secrets.DOCKERHUB_TOKEN }}"
+            fi
+
+            echo "---------"
+            echo "Deployed image: $IMAGE"
+            FQDN=$(az containerapp show -g $RG_NAME -n $ACA_APP_NAME --query properties.configuration.ingress.fqdn -o tsv)
+            echo "Public URL: https://${FQDN}"

@@ -1,0 +1,111 @@
+# ======================================================
+# 🌐 .gitignore for AuthClient + AuthLicensingApi (.NET + WinForms + Docker)
+# ======================================================
+
+# --- General ---
+*.log
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+.env
+.env.*
+*.bak
+*.tmp
+logs/
+bin/
+obj/
+publish/
+out/
+temp/
+tmp/
+
+# --- .NET build output ---
+**/bin/
+**/obj/
+**/Debug/
+**/Release/
+**/x64/
+**/x86/
+**/*.exe
+**/*.dll
+**/*.pdb
+
+# --- Windows / VS specific ---
+.vs/
+*.dbmdl
+*.cachefile
+*.tlog
+*.lastbuildstate
+
+# --- Docker ---
+#Dockerfile
+#docker-compose.yml
+#.dockerignore
+
+# --- Sensitive config ---
+appsettings.Development.json
+appsettings.Production.json
+appsettings.Local.json
+*.secrets.json
+
+# --- Auth specific ---
+AuthApp/bin/
+AuthApp/obj/
+AuthLicensingApi/bin/
+AuthLicensingApi/obj/
+AuthLicensingApi/logs/
+AuthLicensingApi/temp/
+AuthLicensingApi/out/
+AuthLicensingApi/Properties/launchSettings.json
+
+# --- Node / NPM (if used in radar_web etc) ---
+node_modules/
+dist/
+.env.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- OS specific ---
+.DS_Store
+ehthumbs.db
+Icon?
+$RECYCLE.BIN/
+
+# --- Backup / archive files ---
+*.zip
+*.7z
+*.rar
+*.tar
+*.gz
+
+# --- GitHub Actions caches ---
+*.cache/
+.github/workflows/tmp/
+.github/workflows/*.bak
+
+# --- Ignore personal files ---
+AuthApp/.vs/
+AuthApp/*.user
+AuthApp/*.db
+AuthApp/*.docstates
+AuthLicensingApi/.vs/
+AuthLicensingApi/*.user
+AuthLicensingApi/*.db
+AuthLicensingApi/*.docstates
+
+# --- Prevent accidental inclusion of secrets or DB dumps ---
+*.key
+*.pem
+*.crt
+*.pfx
+*.json.backup
+*.sqlite
+*.bak.json
+dump/
+data/
