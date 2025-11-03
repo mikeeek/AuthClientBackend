@@ -1,3 +1,4 @@
+using AuthLicensingApi.Converters;
 using AuthLicensingApi.Data;
 using AuthLicensingApi.Endpoints;
 using AuthLicensingApi.Extensions;
@@ -12,6 +13,12 @@ LoggingExtensions.ConfigureSerilog();
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog();
+
+// Configure JSON serialization for MongoDB ObjectId
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new ObjectIdJsonConverter());
+});
 
 // Read config (appsettings.json is auto-loaded)
 var mongoConn = builder.Configuration["Mongo:ConnectionString"]!;
