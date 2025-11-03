@@ -14,10 +14,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog();
 
-// Configure JSON serialization for MongoDB ObjectId
+// Configure JSON serialization for MongoDB ObjectId (for Minimal APIs)
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(new ObjectIdJsonConverter());
+});
+
+// Also configure for MVC/Controllers (in case of mixed usage)
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.JsonOptions>(options =>
+{
+    options.JsonSerializerOptions.Converters.Add(new ObjectIdJsonConverter());
 });
 
 // Read config (appsettings.json is auto-loaded)

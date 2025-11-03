@@ -24,6 +24,9 @@ public static class UserProfileEndpoints
             if (user is null || license is null)
                 return Results.NotFound("User or license not found.");
 
+            if (license.Subscription is null)
+                return Results.Problem("License has no subscription data", statusCode: 500);
+
             return Results.Ok(new
             {
                 username,

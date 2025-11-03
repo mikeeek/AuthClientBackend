@@ -21,60 +21,84 @@ public static class AuthenticationEndpoints
         string jwtIssuer,
         string jwtAudience)
     {
-        app.MapPost("/register", async (RegisterRequest req) =>
+        app.MapPost("/register", async (RegisterRequest req, ILogger<Program> logger) =>
         {
-            if (string.IsNullOrWhiteSpace(req.Username) || string.IsNullOrWhiteSpace(req.Password))
-                return Results.BadRequest("Username and password required.");
-
-            var exists = await users.Find(u => u.Username == req.Username).AnyAsync();
-            if (exists) return Results.Conflict("Username already exists.");
-
-            // Create the user first
-            var hash = BCrypt.Net.BCrypt.HashPassword(req.Password, workFactor: bcryptWorkFactor);
-            var user = new User { Username = req.Username, PasswordHash = hash };
-            await users.InsertOneAsync(user);
-
-            // If no license key provided, we are done
-            if (string.IsNullOrWhiteSpace(req.LicenseKey))
-                return Results.Created($"/users/{user.Id}", new { id = user.Id.ToString(), user.Username });
-
-            // Verify license exists
-            var existingLicense = await licenses.Find(l => l.Key == req.LicenseKey).FirstOrDefaultAsync();
-            if (existingLicense is null)
+            try
             {
-                // rollback user to keep data clean
-                await users.DeleteOneAsync(u => u.Id == user.Id);
-                return Results.BadRequest("License key is invalid.");
+                if (string.IsNullOrWhiteSpace(req.Username) || string.IsNullOrWhiteSpace(req.Password))
+                    return Results.BadRequest("Username and password required.");
+
+                var exists = await users.Find(u => u.Username == req.Username).AnyAsync();
+                if (exists) return Results.Conflict("Username already exists.");
+
+                // Create the user first
+                var hash = BCrypt.Net.BCrypt.HashPassword(req.Password, workFactor: bcryptWorkFactor);
+                var user = new User { Username = req.Username, PasswordHash = hash };
+                await users.InsertOneAsync(user);
+                logger.LogInformation("User created: {Username}, Id: {UserId}", user.Username, user.Id);
+
+                // If no license key provided, we are done
+                if (string.IsNullOrWhiteSpace(req.LicenseKey))
+                {
+                    logger.LogInformation("User registered successfully without license: {Username}", user.Username);
+                    return Results.Created($"/users/{user.Id}", new { id = user.Id.ToString(), user.Username });
+                }
+
+                // Verify license exists
+                logger.LogInformation("Attempting to claim license: {LicenseKey}", req.LicenseKey);
+                var existingLicense = await licenses.Find(l => l.Key == req.LicenseKey).FirstOrDefaultAsync();
+                if (existingLicense is null)
+                {
+                    logger.LogWarning("License key not found: {LicenseKey}, rolling back user", req.LicenseKey);
+                    // rollback user to keep data clean
+                    await users.DeleteOneAsync(u => u.Id == user.Id);
+                    return Results.BadRequest("License key is invalid.");
+                }
+
+                //claim the license only if itss NOT already assigned
+                var claimFilter = Builders<License>.Filter.And(
+                    Builders<License>.Filter.Eq(l => l.Key, req.LicenseKey),
+                    Builders<License>.Filter.Or(
+                        Builders<License>.Filter.Exists(l => l.UserId, false),
+                        Builders<License>.Filter.Eq(l => l.UserId, ObjectId.Empty),
+                        Builders<License>.Filter.Eq(l => l.UserId, default(ObjectId))
+                    )
+                );
+
+                var claimUpdate = Builders<License>.Update
+                    .Set(l => l.UserId, user.Id)
+                    .Set(l => l.Status, "active");
+
+                var claimResult = await licenses.UpdateOneAsync(claimFilter, claimUpdate);
+                logger.LogInformation("License claim result - Matched: {Matched}, Modified: {Modified}",
+                    claimResult.MatchedCount, claimResult.ModifiedCount);
+
+                if (claimResult.ModifiedCount == 0)
+                {
+                    logger.LogWarning("License already claimed: {LicenseKey}, rolling back user", req.LicenseKey);
+                    await users.DeleteOneAsync(u => u.Id == user.Id);
+                    return Results.Conflict("License key is already claimed.");
+                }
+
+                logger.LogInformation("User registered with license successfully: {Username}, License: {LicenseKey}",
+                    user.Username, req.LicenseKey);
+
+                return Results.Created($"/users/{user.Id}", new
+                {
+                    id = user.Id.ToString(),
+                    user.Username,
+                    claimedKey = req.LicenseKey
+                });
             }
-
-            //claim the license only if itss NOT already assigned
-            var claimFilter = Builders<License>.Filter.And(
-                Builders<License>.Filter.Eq(l => l.Key, req.LicenseKey),
-                Builders<License>.Filter.Or(
-                    Builders<License>.Filter.Exists(l => l.UserId, false),
-                    Builders<License>.Filter.Eq(l => l.UserId, ObjectId.Empty),
-                    Builders<License>.Filter.Eq(l => l.UserId, default(ObjectId))
-                )
-            );
-
-            var claimUpdate = Builders<License>.Update
-                .Set(l => l.UserId, user.Id)
-                .Set(l => l.Status, "active");
-
-            var claimResult = await licenses.UpdateOneAsync(claimFilter, claimUpdate);
-
-            if (claimResult.ModifiedCount == 0)
+            catch (Exception ex)
             {
-                await users.DeleteOneAsync(u => u.Id == user.Id);
-                return Results.Conflict("License key is already claimed.");
+                logger.LogError(ex, "Error during registration for username: {Username}", req.Username);
+                return Results.Problem(
+                    title: "Registration failed",
+                    detail: ex.Message,
+                    statusCode: 500
+                );
             }
-
-            return Results.Created($"/users/{user.Id}", new
-            {
-                id = user.Id.ToString(),
-                user.Username,
-                claimedKey = req.LicenseKey
-            });
         })
         .RequireRateLimiting("authPolicy")
         .WithTags("Authentication")
@@ -109,6 +133,7 @@ public static class AuthenticationEndpoints
 
             var license = await licenses.Find(l => l.UserId == user.Id && l.Key == req.Key && l.Status == "active").FirstOrDefaultAsync();
             if (license is null) return Results.Forbid();
+            if (license.Subscription is null) return Results.Problem("License has no subscription data", statusCode: 500);
             if (license.Subscription.ExpiresAt <= DateTime.UtcNow) return Results.Forbid();
 
             // Build JWT

@@ -3,6 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace AuthLicensingApi.Models;
 
+[BsonIgnoreExtraElements]
 public class License
 {
     [BsonId] public ObjectId Id { get; set; }
