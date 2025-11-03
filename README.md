@@ -18,6 +18,7 @@ This repository features **fully automated deployment** to Azure using GitHub Ac
 
 > 🌐 **[Try it Live - hosted on Azure!](https://auth-licensing-api.thankfulfield-6841e884.westeurope.azurecontainerapps.io/index.html)**
 
+You can use test licenses in format "KEY-X" from 1 to 100 when registering/logging in.
 ---
 
 ## ✨ Key Features
@@ -135,6 +136,21 @@ A C# WinForms application demonstrating full API integration:
 
 ---
 
+## 🧪 Unit Testing
+
+Unit tests using **xUnit** and **.NET 9**:
+
+- **RegistrationEndpointTests**: User registration, license claiming, duplicate prevention, BCrypt security
+- **AuthenticationEndpointTests**: JWT generation, password validation, license verification, token handling
+- **UserProfileEndpointTests**: Profile retrieval, subscription levels, token expiry, claims validation
+
+**Key Features:**
+- ✅ Real MongoDB integration with isolated test databases
+- ✅ Security testing (BCrypt hashing, JWT validation)
+- ✅ Comprehensive edge case coverage
+
+---
+
 ## Getting Started
 
 ### Prerequisites
@@ -145,16 +161,24 @@ A C# WinForms application demonstrating full API integration:
 ### Local Development
 
 1. Clone the repository
-   ```bash
-   git clone <repository-url>
-   cd AuthLicensingApi
-   ```
 
 2. Update `appsettings.json` with your MongoDB connection string and JWT settings
 
 3. Run the API
+    **Linux/macOS:**
    ```bash
    dotnet run --project AuthLicensingApi
+   ```
+
+   **Windows (PowerShell/CMD):**
+   ```cmd
+   dotnet run --project AuthLicensingApi
+   ```
+
+   Or simply navigate to the project folder and run:
+   ```cmd
+   cd AuthLicensingApi
+   dotnet run
    ```
 
 4. Access Swagger UI at `http://localhost:5080/swagger`
