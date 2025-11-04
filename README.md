@@ -1,10 +1,10 @@
-# 🔐 AuthLicensing API + Client
+# AuthLicensing API + Client
 
 A lightweight **authentication and licensing API** built with **.NET 8**, **MongoDB**, and **JWT tokens**, featuring **Swagger UI** and a **WinForms test client** for demonstrating secure authentication flows.
 
 ---
 
-## 🚀 CI/CD Pipeline
+## CI/CD Pipeline
 
 This repository features **fully automated deployment** to Azure using GitHub Actions:
 
@@ -21,24 +21,24 @@ This repository features **fully automated deployment** to Azure using GitHub Ac
 You can use test licenses in format "KEY-X" from 1 to 100 when registering/logging in.
 ---
 
-## ✨ Key Features
+## Key Features
 
-### 🔑 JWT Authentication
+### JWT Authentication
 - Secure short-lived access tokens with expiration and signature validation
 - Issuer/audience verification using `JwtBearer`
 - Token-based authorization for protected endpoints
 
-### 🗄️ MongoDB Integration
+### MongoDB Integration
 - Collections for `users` and `licenses`
 - Atomic license claiming with duplicate prevention
 - Efficient document-based storage
 
-### 🔒 Security
+### Security
 - **Password Hashing**: Salted hashes with adjustable BCrypt work factor
 - **Rate Limiting**: Protection against brute-force attacks on `/auth/check` and `/register`
 - **Correlation IDs**: Unique request tracking for debugging and monitoring
 
-### 📝 Structured Logging with Serilog
+### Structured Logging with Serilog
 JSON and console logs with detailed request information:
 ```
 [21:42:53 INF] (cid=91247fd1...) HTTP POST /auth/check => 200 (214 ms)
@@ -60,7 +60,7 @@ Interactive API documentation with built-in JWT authorization testing
 
 ---
 
-## 🌐 API Endpoints
+## API Endpoints
 
 | Method | Path | Description | Auth Required | Rate Limited |
 |--------|------|-------------|---------------|--------------|
@@ -70,7 +70,7 @@ Interactive API documentation with built-in JWT authorization testing
 
 ---
 
-## 🔄 Authentication Flow
+## Authentication Flow
 
 ```mermaid
 sequenceDiagram
@@ -105,7 +105,7 @@ sequenceDiagram
 
 ---
 
-## 🖥️ WinForms Authentication Client
+## WinForms Authentication Client
 
 A C# WinForms application demonstrating full API integration:
 
@@ -136,7 +136,7 @@ A C# WinForms application demonstrating full API integration:
 
 ---
 
-## 🧪 Unit Testing
+## Unit Testing
 
 Unit tests using **xUnit** and **.NET 9**:
 
@@ -145,9 +145,9 @@ Unit tests using **xUnit** and **.NET 9**:
 - **UserProfileEndpointTests**: Profile retrieval, subscription levels, token expiry, claims validation
 
 **Key Features:**
-- ✅ Real MongoDB integration with isolated test databases
-- ✅ Security testing (BCrypt hashing, JWT validation)
-- ✅ Comprehensive edge case coverage
+- Real MongoDB integration with isolated test databases
+- Security testing (BCrypt hashing, JWT validation)
+- Comprehensive edge case coverage
 
 ---
 
@@ -185,6 +185,6 @@ Unit tests using **xUnit** and **.NET 9**:
 
 ---
 
-## 📄 License
+## License
 
 This project is open source and available under the [MIT License](LICENSE).
